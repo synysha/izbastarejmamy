@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="sk"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tajomná izba Starej mamy</title>
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#2a1b4a">
+<link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Izba Starej mamy">
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+:root{--bg:#f4efe6;--card:#fff;--ink:#2b2433;--acc:#7b3fe4;--mut:#6b6475;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17131f;--card:#241e31;--ink:#f1ecf9;--acc:#a37bff;--mut:#a79fb5}}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh;display:flex;justify-content:center}
+main{width:100%;max-width:480px;padding:12px}
+h1{font-size:1.2rem;margin:0 0 6px}h2{margin:0 0 6px;font-size:1.1rem}
+.top{display:flex;justify-content:space-between;color:var(--mut);font-size:.85rem;margin-bottom:8px}
+.card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.msg{white-space:pre-line;line-height:1.45}.row{display:flex;gap:8px;flex-wrap:wrap}
+.scene{position:relative;aspect-ratio:1/1.05;border-radius:16px;overflow:hidden;margin-bottom:10px;background:repeating-linear-gradient(90deg,#ecd5b4 0 14px,#e4cba6 14px 28px);box-shadow:inset 0 0 40px rgba(90,50,10,.25)}
+@media (prefers-color-scheme:dark){.scene{filter:brightness(.7)}}
+.scene::after{content:"";position:absolute;left:0;right:0;bottom:0;height:30%;border-top:6px solid #5a3a1c;background:repeating-linear-gradient(90deg,#8b5a2b 0 44px,#7a4b21 44px 46px)}
+.rug{position:absolute;left:18%;right:18%;bottom:4%;height:15%;border-radius:50%;background:radial-gradient(#c0392b 35%,#e6b980 36% 55%,#c0392b 56%);z-index:1;opacity:.9}
+.it{position:absolute;z-index:2;font-size:2.3rem;line-height:1;background:none;border:0;padding:2px;cursor:pointer;transform:translate(0,0)}
+.it.mine{animation:pl 1.4s infinite;filter:drop-shadow(0 0 8px #ffd23f)}
+@keyframes pl{50%{transform:scale(1.18)}}
+button.p{background:var(--acc);color:#fff;border:0;border-radius:12px;padding:12px 16px;font-size:1rem;cursor:pointer}
+button.s{background:none;border:1px solid var(--mut);color:var(--ink);border-radius:12px;padding:9px 12px;font-size:.85rem;cursor:pointer}
+button:disabled{opacity:.45}
+input,textarea{width:100%;padding:11px;border-radius:12px;border:2px solid var(--mut);font-size:1.05rem;background:var(--bg);color:var(--ink);margin:6px 0;font-family:inherit}
+.roles{display:grid;gap:8px;margin:10px 0}.roles button{text-align:left;padding:14px}
+#hb{width:100%;padding:34px 0;font-size:1.3rem;border:0;border-radius:18px;background:var(--acc);color:#fff;touch-action:none;user-select:none;-webkit-user-select:none}
+#hb.on{background:#1f9d55}
+.big{text-align:center;padding:20px 0}.big div{font-size:4rem}
+.ok{color:#1f9d55;font-weight:600}.bad{color:#d33}
+</style></head><body><main>
+<h1>🕯️ Tajomná izba Starej mamy</h1>
+<div class="top"><span id="time"></span><span id="top2"></span></div>
+<div id="app"></div>
+</main><script>
+const $=s=>document.querySelector(s);
+const norm=s=>s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
+const fmt=ms=>{const s=Math.floor(ms/1000);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
+const ROLES={a:{n:"Číslarka",i:"🔢",d:"Máš cifry a návody."},b:{n:"Šifrantka",i:"🔤",d:"Máš zašifrované odkazy."},c:{n:"Hľadačka",i:"🔍",d:"Hľadáš veci v skutočnom dome."}};
+const OBJ={clock:["🕰️",8,6],pic:["🖼️",40,3],win:["🪟",72,6],door:["🚪",82,26],radio:["📻",72,46],cab:["🗄️",40,46],yarn:["🧶",20,58],sofa:["🛋️",6,56],plant:["🪴",80,64]};
+const HELPER="Hľadačka má úlohu v skutočnom dome. Choďte jej pomôcť hľadať a poraďte sa. Odpoveď môže zadať ktorákoľvek z vás.";
+const ST=[
+{n:"Truhlica na komode",s:"Na komode stojí zamknutá truhlica s 3-ciferným kódom. Každá z vás vidí len jednu cifru. Povedzte si ich nahlas!",type:"code",ans:"472",o:{a:"clock",b:"pic",c:"yarn"},t:{a:"🕰️ Hodiny stoja na štvrtej hodine. Tvoja cifra (1.): 4",b:"🖼️ Na obraze horí 7 sviečok. Tvoja cifra (2.): 7",c:"🧶 V klbku sú zapichnuté 2 ihlice. Tvoja cifra (3.): 2"},ok:"Truhlica sa otvorila. Vnútri je lístok: „Teraz musíte nájsť niečo vo vašom skutočnom dome.“",h:"Kód má poradie: hodiny, obraz, klbko."},
+{n:"Úloha v skutočnom dome",s:"Lístok z truhlice vás posiela von z obrazovky!",type:"real",k:0,o:{c:"door"},ok:"Správne! Tajné dvierka sa pootvorili.",h:"Opýtajte sa Hľadačky, čo presne hľadá."},
+{n:"Tajný odkaz z rádia",s:"Z rádia sa ozval šifrovaný odkaz. Každá z vás má jeden kúsok skladačky.",type:"text",ans:"kniha",o:{a:"cab",b:"radio",c:"sofa"},t:{a:"🗄️ Návod: každé písmeno posuň o 1 späť v abecede (B→A).",b:"📻 Zašifrované slovo: LOJIB",c:"🛋️ Abeceda: A B C D E F G H I J K L M N O P Q R S T U V W X Y Z"},ok:"Slovo KNIHA! Za knihou je schovaný spínač.",h:"L→K. Prečítajte po jednom písmene."},
+{n:"Spoločné ťuknutie",s:"Spínač potrebuje troch naraz! Všetky tri podržte tlačidlo v rovnakej chvíli. Odpočítajte nahlas 3-2-1.",type:"hold",ok:"Spínač cvakol! Zostáva posledná úloha.",h:"Podržte všetky tri prst naraz."},
+{n:"Posledná úloha",s:"Posledné dvere sa neotvoria bez posledného hľadania.",type:"real",k:1,o:{c:"door"},ok:"",h:"Hľadajte ďalej, skúste iné miestnosti."}];
+let CFG={q:["Ukážková úloha 1: Hľadačka ide ku dverám a hľadá lístok. (Rodič: v ⚙️ nastav vlastnú úlohu.) Odpoveď: ok","Ukážková úloha 2. Odpoveď: ok"],a:["ok","ok"]};
+let G={step:-1,hints:3,start:0,end:0,hint:"",msg:""},P={},role=null,db=null,uid=null,owner=false,local=false,note="",noteStep=-2,wrong="",cfgOpen=false,adv=false,LH={a:0,b:0,c:0},lastKey="";
+let mode=null,peer=null,conns=[],isHost=false,code="",net="";
+const PFX="stara-mama-izba-";
+function bc(){role=P[uid]?.role||null;const m={t:"s",G,P,CFG};conns.forEach(c=>c.open&&c.send(m));render()}
+function toHost(m){if(isHost)recv(m,"host");else if(conns[0]&&conns[0].open)conns[0].send(m)}
+function recv(m,from){if(m.t==="g")G={...G,...m.d};else if(m.t==="p"){if(m.d===null)delete P[from];else P[from]={...P[from],...m.d}}else if(m.t==="cfg")CFG=m.d;bc()}
+function onData(m){if(m.t==="s"){G=m.G;P=m.P;CFG=m.CFG;role=P[uid]?.role||null;render()}}
+function setG(d){if(local){G={...G,...d};render()}else toHost({t:"g",d})}
+function sendP(d){toHost({t:"p",d})}
+function pick(r){if(local){role=r;render()}else sendP({role:r,holding:false})}
+function leave(){if(local){role=null;render()}else sendP(null)}
+function noNet(){if(typeof Peer==="undefined"){net="Nepodarilo sa načítať sieťovú knižnicu. Skontroluj internet.";render();return true}}
+function host(){if(noNet())return;code=String(Math.floor(1000+Math.random()*9000));peer=new Peer(PFX+code);
+ peer.on("open",()=>{mode="host";isHost=true;owner=true;uid="host";P={};net="";render()});
+ peer.on("connection",c=>{conns.push(c);c.on("open",bc);c.on("data",m=>recv(m,c.peer));c.on("close",()=>{conns=conns.filter(x=>x!==c);delete P[c.peer];bc()})});
+ peer.on("error",e=>{if(e.type==="unavailable-id")host();else{net="Chyba spojenia: "+e.type;render()}})}
+function join(){const c=$("#code").value.trim();if(noNet())return;net="Pripájam sa…";render();peer=new Peer();
+ peer.on("open",id=>{uid=id;code=c;const cn=peer.connect(PFX+c,{reliable:true});conns=[cn];
+  cn.on("open",()=>{mode="client";net="";cn.send({t:"hi"});render()});cn.on("data",onData);
+  cn.on("close",()=>{net="Spojenie sa prerušilo. Obnov stránku a pripoj sa znova.";mode=null;render()})});
+ peer.on("error",e=>{net="Nepodarilo sa pripojiť ("+e.type+"). Skontroluj kód.";mode=null;render()})}
+function solo(){mode="local";local=true;uid="local";render()}
+function taken(r){return Object.entries(P).some(([k,v])=>v.role===r&&k!==uid)}
+function start(){setG({step:0,start:Date.now(),end:0,hints:3,hint:"",msg:"",need:local?3:Math.min(3,Object.keys(P).length)})}
+function again(){setG({step:-1,start:0,end:0,hints:3,hint:"",msg:""})}
+function submit(){const v=$("#in").value,s=ST[G.step];let ok;
+ if(s.type==="code")ok=v.trim()===s.ans;else if(s.type==="text")ok=norm(v)===s.ans;else ok=norm(v)===norm(CFG.a[s.k]||"");
+ if(ok){wrong="";setG({step:G.step+1,hint:"",msg:s.ok,end:G.step+1>=ST.length?Date.now():0})}else{wrong="Nie celkom, skúste znova.";render()}}
+function hint(){if(G.hints<=0)return;setG({hints:G.hints-1,hint:"💡 "+ST[G.step].h})}
+function tap(k,mine){note=mine?"clue":"Nič zaujímavé. Tvoje stopy sú inde.";noteStep=G.step;render()}
+function hold(on){if(local){LH[role]=on;render();return}sendP({holding:!!on})}
+function holdCount(){return local?Object.values(LH).filter(Boolean).length:Object.values(P).filter(p=>p.holding).length}
+function scene(s){return `<div class="scene"><div class="rug"></div>${Object.entries(OBJ).map(([k,[e,x,y]])=>{const m=s.o&&s.o[role]===k;return `<button class="it ${m?"mine":""}" style="left:${x}%;top:${y}%" onclick="tap('${k}',${m})">${e}</button>`}).join("")}</div>`}
+function cfgPanel(){return `<div class="card"><h2>⚙️ Úlohy pre skutočný dom</h2><div class="msg" style="color:var(--mut);font-size:.9rem">Napíš, čo majú nájsť/urobiť (1. a 2. skutočná úloha) a správnu odpoveď (jedno slovo/číslo).</div>${[0,1].map(i=>`<b>Úloha ${i+1}</b><textarea id="q${i}" rows="3">${CFG.q[i]||""}</textarea><input id="a${i}" placeholder="správna odpoveď" value="${CFG.a[i]||""}">`).join("")}<div class="row"><button class="p" onclick="saveCfg()">Uložiť</button><button class="s" onclick="cfgOpen=false;render()">Zavrieť</button></div></div>`}
+function saveCfg(){CFG={q:[$("#q0").value,$("#q1").value],a:[$("#a0").value,$("#a1").value]};if(!local)toHost({t:"cfg",d:CFG});cfgOpen=false;render()}
+setInterval(()=>{if(G.start&&!G.end&&G.step>=0)$("#time").textContent="⏱️ "+fmt(Date.now()-G.start)},500);
+function render(){
+ const a=$("#app"),tp=$("#top2");
+ if(mode===null){a.innerHTML=`<div class="card msg"><b>Ako chcete hrať?</b>\nJedna z vás vytvorí hru a ostatné sa pripoja kódom.</div><div class="roles"><button class="p" onclick="host()">➕ Vytvoriť hru (4-ciferný kód)</button><div class="card"><input id="code" inputmode="numeric" maxlength="4" placeholder="Kód hry"><button class="p" onclick="join()">🔗 Pripojiť sa</button></div><button class="s" onclick="solo()">📱 Hrať na jednom telefóne</button></div>${net?`<div class="card bad">${net}</div>`:""}`;return}
+ tp.textContent=G.step>=0&&G.step<ST.length?"💡 Nápovedy: "+G.hints+(role?" · "+ROLES[role].i+" "+ROLES[role].n:""):"";
+ if(!G.start||G.step<0)$("#time").textContent="";
+ const s=ST[G.step],key=G.step+"|"+role;
+ if(s&&s.type==="hold"&&$("#hb")&&key===lastKey){$("#hs").textContent=holdCount()+" / "+(G.need||3)+" drží";checkHold();return}
+ lastKey=key;
+ const pv=$("#in")?.value||"",foc=document.activeElement?.id==="in";
+ let h="";
+ if(cfgOpen)h=cfgPanel();
+ else if(!role){h=`<div class="card msg">Vitajte u Starej mamy! Dom skrýva tajomstvo a vy ho môžete odhaliť len spolu. Každá z vás hrá inú úlohu a vidí iné veci.\n\nVyber si rolu:${local?"\n(Hráš na jednom telefóne: rolu môžeš kedykoľvek prepnúť.)":""}</div><div class="roles">${Object.entries(ROLES).map(([k,r])=>`<button class="s" ${taken(k)?"disabled":""} onclick="pick('${k}')"><b>${r.i} ${r.n}</b>${taken(k)?" (obsadené)":""}<br><small>${r.d}</small></button>`).join("")}</div>`}
+ else if(G.step<0){const n=Object.keys(P).length;h=`<div class="card msg"><b>${ROLES[role].i} Si ${ROLES[role].n}.</b>\n${local?"":"Kód hry: "+code+"\nPripojené: "+n+" / 3\n"}${Object.values(P).map(p=>ROLES[p.role].i+" "+ROLES[p.role].n).join(", ")}\n\nKeď sú všetky pripravené, spustite hru.</div><button class="p" ${local||n>=2?"":"disabled"} onclick="start()">▶️ Spustiť hru${!local&&n==2?" (test pre 2)":""}</button> <button class="s" onclick="leave()">Zmeniť rolu</button>${owner||local?` <button class="s" onclick="cfgOpen=true;render()">⚙️ Pre rodiča</button>`:""}`}
+ else if(G.step>=ST.length){h=`<div class="card big"><div>🎉</div><h2>Tajomstvo odhalené!</h2><p>${(G.end-G.start)/60000<20?"⭐⭐":"⭐"}${G.hints>=2?"⭐":""}<br>Čas: <b>${fmt(G.end-G.start)}</b> · nápovedy: ${3-G.hints}</p><button class="p" onclick="again()">Hrať znova</button></div>`}
+ else{
+  if(noteStep!==G.step){note="";noteStep=G.step;wrong=""}
+  const mine=s.t?s.t[role]:null;
+  let cl="";
+  if(s.type==="real")cl=(role==="c"||(G.need||3)<3)?`<div class="card msg"><b>🔍 Tvoja úloha:</b>\n${CFG.q[s.k]||""}</div>`:`<div class="card msg">${HELPER}</div>`;
+  else if(note==="clue")cl=`<div class="card msg"><b>Stopa:</b>\n${mine}</div>`;
+  else if(note)cl=`<div class="card msg">${note}</div>`;
+  else cl=`<div class="card msg" style="color:var(--mut)">Ťukni na žiarivé predmety v izbe. Tvoja stopa je schovaná tam.</div>`;
+  if((G.need||3)<3&&s.t)cl+=`<div class="card msg"><b>🧪 Test, stopy všetkých rolí:</b>\n${Object.values(s.t).join("\n")}</div>`;
+  const inp=s.type==="hold"?`<button id="hb" class="${LH[role]||P[uid]?.holding?"on":""}" onpointerdown="hold(1)" onpointerup="hold(0)" onpointercancel="hold(0)" onpointerleave="hold(0)">✋ PODRŽ</button><p id="hs" style="text-align:center">${holdCount()} / ${G.need||3} drží</p>`:`<input id="in" ${s.type==="code"?'inputmode="numeric" maxlength="3"':""} placeholder="${s.type==="code"?"___":"Odpoveď…"}" autocomplete="off"><button class="p" onclick="submit()">Skúsiť</button>`;
+  h=`${G.msg?`<div class="card msg ok">✅ ${G.msg}</div>`:""}<div class="card"><h2>${G.step+1}/${ST.length} ${s.n}</h2><div class="msg">${s.s}</div></div>${scene(s)}${cl}<div class="card">${inp}${wrong?`<div class="bad">${wrong}</div>`:""}${G.hint?`<div class="msg">${G.hint}</div>`:""}</div><div class="row"><button class="s" onclick="hint()" ${G.hints<=0?"disabled":""}>💡 Nápoveda (${G.hints})</button>${local?`<button class="s" onclick="leave()">🔁 Rola</button>`:""}</div>`}
+ a.innerHTML=h;
+ const i=$("#in");if(i){i.value=pv;if(foc)i.focus()}
+ checkHold();
+}
+function checkHold(){const s=ST[G.step];if(s&&s.type==="hold"&&holdCount()>=(G.need||3)&&!adv){adv=true;setTimeout(()=>{adv=false;LH={a:0,b:0,c:0};if(G.step===3)setG({step:4,hint:"",msg:s.ok})},700)}}
+render();
+if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script></body></html>

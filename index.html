@@ -63,14 +63,18 @@ function pick(r){if(local){role=r;render()}else sendP({role:r,holding:false})}
 function leave(){if(local){role=null;render()}else sendP(null)}
 function noNet(){if(typeof Peer==="undefined"){net="Nepodarilo sa načítať sieťovú knižnicu. Skontroluj internet.";render();return true}}
 function host(){if(noNet())return;code=String(Math.floor(1000+Math.random()*9000));peer=new Peer(PFX+code);
- peer.on("open",()=>{mode="host";isHost=true;owner=true;uid="host";P={};net="";render()});
+ peer.on("open",()=>{mode="host";isHost=true;owner=true;uid="host";P={};net="";wake();render()});
+ peer.on("disconnected",()=>{try{peer.reconnect()}catch(e){}});
  peer.on("connection",c=>{conns.push(c);c.on("open",bc);c.on("data",m=>recv(m,c.peer));c.on("close",()=>{conns=conns.filter(x=>x!==c);delete P[c.peer];bc()})});
  peer.on("error",e=>{if(e.type==="unavailable-id")host();else{net="Chyba spojenia: "+e.type;render()}})}
-function join(){const c=$("#code").value.trim();if(noNet())return;net="Pripájam sa…";render();peer=new Peer();
+function join(){const c=$("#code").value.replace(/\D/g,"");if(noNet())return;net="Pripájam sa…";render();peer=new Peer();
  peer.on("open",id=>{uid=id;code=c;const cn=peer.connect(PFX+c,{reliable:true});conns=[cn];
   cn.on("open",()=>{mode="client";net="";cn.send({t:"hi"});render()});cn.on("data",onData);
   cn.on("close",()=>{net="Spojenie sa prerušilo. Obnov stránku a pripoj sa znova.";mode=null;render()})});
- peer.on("error",e=>{net="Nepodarilo sa pripojiť ("+e.type+"). Skontroluj kód.";mode=null;render()})}
+ peer.on("error",e=>{net=e.type==="peer-unavailable"?"Hra s kódom "+c+" nebola nájdená. Hostiteľ musí mať otvorenú obrazovku s kódom (nesmie zhasnúť).":"Nepodarilo sa pripojiť ("+e.type+").";mode=null;render()})}
+let wl=null;
+async function wake(){try{if(navigator.wakeLock&&isHost)wl=await navigator.wakeLock.request("screen")}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&isHost){wake();if(peer&&peer.disconnected)try{peer.reconnect()}catch(e){}}});
 function solo(){mode="local";local=true;uid="local";render()}
 function taken(r){return Object.entries(P).some(([k,v])=>v.role===r&&k!==uid)}
 function start(){setG({step:0,start:Date.now(),end:0,hints:3,hint:"",msg:"",need:local?3:Math.min(3,Object.keys(P).length)})}
@@ -95,10 +99,10 @@ function render(){
  if(s&&s.type==="hold"&&$("#hb")&&key===lastKey){$("#hs").textContent=holdCount()+" / "+(G.need||3)+" drží";checkHold();return}
  lastKey=key;
  const pv=$("#in")?.value||"",foc=document.activeElement?.id==="in";
- let h="";
+ let h="";const cb=(local||!code)?"":`<div class="card big" style="padding:10px"><small>KÓD HRY (povedz ho ostatným)</small><div style="font-size:2.8rem;letter-spacing:8px;font-weight:700">${code}</div></div>`;
  if(cfgOpen)h=cfgPanel();
- else if(!role){h=`<div class="card msg">Vitajte u Starej mamy! Dom skrýva tajomstvo a vy ho môžete odhaliť len spolu. Každá z vás hrá inú úlohu a vidí iné veci.\n\nVyber si rolu:${local?"\n(Hráš na jednom telefóne: rolu môžeš kedykoľvek prepnúť.)":""}</div><div class="roles">${Object.entries(ROLES).map(([k,r])=>`<button class="s" ${taken(k)?"disabled":""} onclick="pick('${k}')"><b>${r.i} ${r.n}</b>${taken(k)?" (obsadené)":""}<br><small>${r.d}</small></button>`).join("")}</div>`}
- else if(G.step<0){const n=Object.keys(P).length;h=`<div class="card msg"><b>${ROLES[role].i} Si ${ROLES[role].n}.</b>\n${local?"":"Kód hry: "+code+"\nPripojené: "+n+" / 3\n"}${Object.values(P).map(p=>ROLES[p.role].i+" "+ROLES[p.role].n).join(", ")}\n\nKeď sú všetky pripravené, spustite hru.</div><button class="p" ${local||n>=2?"":"disabled"} onclick="start()">▶️ Spustiť hru${!local&&n==2?" (test pre 2)":""}</button> <button class="s" onclick="leave()">Zmeniť rolu</button>${owner||local?` <button class="s" onclick="cfgOpen=true;render()">⚙️ Pre rodiča</button>`:""}`}
+ else if(!role){h=`${cb}<div class="card msg">Vitajte u Starej mamy! Dom skrýva tajomstvo a vy ho môžete odhaliť len spolu. Každá z vás hrá inú úlohu a vidí iné veci.\n\nVyber si rolu:${local?"\n(Hráš na jednom telefóne: rolu môžeš kedykoľvek prepnúť.)":""}</div><div class="roles">${Object.entries(ROLES).map(([k,r])=>`<button class="s" ${taken(k)?"disabled":""} onclick="pick('${k}')"><b>${r.i} ${r.n}</b>${taken(k)?" (obsadené)":""}<br><small>${r.d}</small></button>`).join("")}</div>`}
+ else if(G.step<0){const n=Object.keys(P).length;h=`${cb}<div class="card msg"><b>${ROLES[role].i} Si ${ROLES[role].n}.</b>\n${local?"":"Kód hry: "+code+"\nPripojené: "+n+" / 3\n"}${Object.values(P).map(p=>ROLES[p.role].i+" "+ROLES[p.role].n).join(", ")}\n\nKeď sú všetky pripravené, spustite hru.</div><button class="p" ${local||n>=2?"":"disabled"} onclick="start()">▶️ Spustiť hru${!local&&n==2?" (test pre 2)":""}</button> <button class="s" onclick="leave()">Zmeniť rolu</button>${owner||local?` <button class="s" onclick="cfgOpen=true;render()">⚙️ Pre rodiča</button>`:""}`}
  else if(G.step>=ST.length){h=`<div class="card big"><div>🎉</div><h2>Tajomstvo odhalené!</h2><p>${(G.end-G.start)/60000<20?"⭐⭐":"⭐"}${G.hints>=2?"⭐":""}<br>Čas: <b>${fmt(G.end-G.start)}</b> · nápovedy: ${3-G.hints}</p><button class="p" onclick="again()">Hrať znova</button></div>`}
  else{
   if(noteStep!==G.step){note="";noteStep=G.step;wrong=""}
